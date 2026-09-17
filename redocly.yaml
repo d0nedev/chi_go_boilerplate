@@ -1,0 +1,10 @@
+extends:
+  - recommended
+
+rules:
+  # Probes are GET-only and have no client-error cases worth documenting.
+  operation-4xx-response: off
+  # The only server entry is the local development URL.
+  no-server-example.com: off
+  # License not decided yet (LICENSE currently holds golang-migrate's MIT text).
+  info-license: off

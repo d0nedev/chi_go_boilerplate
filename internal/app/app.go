@@ -1,0 +1,180 @@
+package app
+
+import (
+	"chi-product-api/internal/config"
+	"chi-product-api/internal/database"
+	"chi-product-api/internal/health"
+	"chi-product-api/internal/logging"
+	"chi-product-api/internal/metrics"
+	"chi-product-api/internal/middleware"
+	"chi-product-api/internal/platform/apperror"
+	"chi-product-api/internal/platform/httpx"
+	"chi-product-api/internal/tracing"
+	"context"
+	"errors"
+	"fmt"
+	"log/slog"
+	"net/http"
+
+	"github.com/go-chi/chi/v5"
+	"github.com/jackc/pgx/v5/pgxpool"
+	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
+	"go.opentelemetry.io/otel/sdk/trace"
+
+	sdkmetric "go.opentelemetry.io/otel/sdk/metric"
+)
+
+const (
+	livenessPath  = "/health"
+	readinessPath = "/ready"
+)
+
+type App struct {
+	Handler        http.Handler
+	Pool           *pgxpool.Pool
+	Config         *config.Config
+	Logger         *slog.Logger
+	TraceProvider  *trace.TracerProvider
+	MetricProvider *sdkmetric.MeterProvider
+	Health         *health.Handler
+}
+
+func New(ctx context.Context, version string) (*App, error) {
+	cfg, err := config.Load()
+	if err != nil {
+		return nil, err
+	}
+
+	logger := logging.New(logging.Config{
+		ServiceName: cfg.App.ServiceName,
+		Environment: cfg.App.Env,
+		Level:       cfg.App.LogLevel,
+	})
+
+	tp, err := tracing.Init(tracing.Config{
+		ServiceName: cfg.App.ServiceName,
+		Version:     version,
+		Environment: cfg.App.Env,
+		Endpoint:    cfg.OTLP.Endpoint,
+		Insecure:    cfg.OTLP.Insecure,
+		SampleRate:  cfg.Tracing.SampleRate,
+	})
+	if err != nil {
+		return nil, fmt.Errorf("initialize tracing: %w", err)
+	}
+
+	meterProvider, err := metrics.Init(metrics.Config{
+		ServiceName: cfg.App.ServiceName,
+		Version:     version,
+		Environment: cfg.App.Env,
+		Endpoint:    cfg.OTLP.Endpoint,
+		Insecure:    cfg.OTLP.Insecure,
+	})
+	if err != nil {
+		_ = tracing.Shutdown(context.Background(), tp)
+
+		return nil, fmt.Errorf("initialize metrics: %w", err)
+	}
+
+	pool, err := database.NewPostgresPool(ctx, cfg.DB)
+	if err != nil {
+		_ = metrics.Shutdown(context.Background(), meterProvider)
+		_ = tracing.Shutdown(context.Background(), tp)
+
+		return nil, fmt.Errorf("initialize database: %w", err)
+	}
+
+	if len(cfg.Auth.APIKeys) == 0 {
+		logger.Warn("API_KEYS is empty: write endpoints are unauthenticated (development only)")
+	}
+
+	logger.Info("configuration loaded",
+		slog.String("version", version),
+		slog.Float64("trace_sample_rate", cfg.Tracing.SampleRate),
+		slog.Bool("otlp_insecure", cfg.OTLP.Insecure),
+		slog.Int("rate_limit_rpm", cfg.RateLimit.RequestsPerMinute),
+		slog.Any("trusted_proxies", cfg.App.TrustedProxies),
+		slog.Int("api_keys", len(cfg.Auth.APIKeys)),
+	)
+
+	healthHandler := health.NewHandler(pool)
+
+	router := newRouter(cfg, logger, healthHandler, modules(cfg, logger, pool, tp)...)
+
+	handler := otelhttp.NewHandler(router, cfg.App.ServiceName,
+		otelhttp.WithFilter(func(r *http.Request) bool {
+			return r.URL.Path != livenessPath && r.URL.Path != readinessPath
+		}),
+	)
+
+	return &App{
+		Handler:        handler,
+		Pool:           pool,
+		Config:         cfg,
+		Logger:         logger,
+		TraceProvider:  tp,
+		MetricProvider: meterProvider,
+		Health:         healthHandler,
+	}, nil
+}
+
+func (a *App) Shutdown(ctx context.Context) error {
+	var errs []error
+
+	if a.MetricProvider != nil {
+		if err := metrics.Shutdown(ctx, a.MetricProvider); err != nil {
+			errs = append(errs, fmt.Errorf("shutdown metrics: %w", err))
+		}
+	}
+
+	if a.TraceProvider != nil {
+		if err := tracing.Shutdown(ctx, a.TraceProvider); err != nil {
+			errs = append(errs, fmt.Errorf("shutdown tracing: %w", err))
+		}
+	}
+
+	if a.Pool != nil {
+		a.Pool.Close()
+	}
+
+	return errors.Join(errs...)
+}
+
+// newRouter builds the HTTP surface shared by every service; domain routes are
+// mounted under /api/v1 from the registrars returned by modules().
+func newRouter(
+	cfg *config.Config,
+	logger *slog.Logger,
+	healthHandler *health.Handler,
+	apiRoutes ...func(chi.Router),
+) *chi.Mux {
+	router := chi.NewRouter()
+
+	// Logging wraps Recovery so recovered panics still produce an access log with status 500.
+	router.Use(middleware.ClientIP(cfg.App.TrustedProxies))
+	router.Use(middleware.RequestID)
+	router.Use(middleware.SecurityHeaders)
+	router.Use(middleware.Logging(logger, livenessPath, readinessPath))
+	router.Use(middleware.RouteTag)
+	router.Use(middleware.Recovery(logger))
+
+	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
+		httpx.WriteError(w, apperror.New(http.StatusNotFound, "NOT_FOUND", "route not found"))
+	})
+	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
+		httpx.WriteError(w, apperror.New(http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed"))
+	})
+
+	router.Get(livenessPath, healthHandler.Health)
+	router.Get(readinessPath, healthHandler.Ready)
+
+	router.Route("/api/v1", func(r chi.Router) {
+		r.Use(middleware.RateLimit(cfg.RateLimit.RequestsPerMinute))
+
+		for _, mount := range apiRoutes {
+			mount(r)
+		}
+	})
+
+	return router
+}
