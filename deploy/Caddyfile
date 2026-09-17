@@ -1,0 +1,6 @@
+# Automatic HTTPS (Let's Encrypt) for $DOMAIN. DNS must point at this VPS and
+# ports 80/443 must be open before the first start.
+{$DOMAIN} {
+	encode zstd gzip
+	reverse_proxy app:8080
+}

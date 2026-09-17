@@ -1,0 +1,162 @@
+# Production stack for a single VPS. Run from this directory:
+#   docker compose up -d --build
+# Metrics, traces and logs go to Grafana Cloud; nothing observability-related is
+# stored here, so alerts keep working when this VPS is down.
+name: chi-product-api-prod
+
+x-logging: &logging
+  driver: json-file
+  options:
+    max-size: 10m
+    max-file: "5"
+    # Copied into every log line as attrs.service; the collector ships only lines that have it.
+    labels: service
+
+services:
+  caddy:
+    image: caddy:2.10-alpine
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+      - "443:443/udp"
+    environment:
+      DOMAIN: ${DOMAIN:?DOMAIN is required}
+    volumes:
+      - ./Caddyfile:/etc/caddy/Caddyfile:ro
+      - caddy_data:/data
+      - caddy_config:/config
+    networks:
+      default:
+        # Fixed so the app can trust X-Forwarded-For from this address only.
+        ipv4_address: 172.30.0.10
+    mem_limit: 128m
+    labels:
+      service: caddy
+    logging: *logging
+    depends_on:
+      - app
+
+  app:
+    build:
+      context: ..
+      args:
+        VERSION: ${VERSION:-dev}
+    image: chi-product-api:${VERSION:-dev}
+    restart: unless-stopped
+    environment:
+      APP_SERVICE_NAME: chi-product-api
+      APP_PORT: "8080"
+      APP_ENV: production
+      APP_SHUTDOWN_DRAIN_DELAY: 2s
+      TRUSTED_PROXIES: 172.30.0.10/32
+      LOG_LEVEL: INFO
+      DB_HOST: postgres
+      DB_PORT: "5432"
+      DB_USER: ${POSTGRES_USER:?}
+      DB_PASSWORD: ${POSTGRES_PASSWORD:?}
+      DB_NAME: ${POSTGRES_DB:?}
+      DB_SSL_MODE: require
+      DB_MAX_CONNS: "20"
+      DB_MIN_CONNS: "2"
+      DB_MAX_CONN_LIFETIME: 1h
+      DB_MAX_CONN_IDLE_TIME: 30m
+      # Collector is a sibling container on the private compose network.
+      OTEL_EXPORTER_OTLP_ENDPOINT: otel-collector:4317
+      OTEL_EXPORTER_OTLP_INSECURE: "true"
+      OTEL_TRACE_SAMPLE_RATE: ${OTEL_TRACE_SAMPLE_RATE:-0.1}
+      API_KEYS: ${API_KEYS:?API_KEYS is required}
+      RATE_LIMIT_REQUESTS_PER_MINUTE: ${RATE_LIMIT_REQUESTS_PER_MINUTE:-600}
+      GOMEMLIMIT: 450MiB
+    mem_limit: 512m
+    stop_grace_period: 20s
+    labels:
+      service: chi-product-api
+    logging: *logging
+    depends_on:
+      migrate:
+        condition: service_completed_successfully
+      otel-collector:
+        condition: service_started
+
+  migrate:
+    image: migrate/migrate:v4.20.1
+    volumes:
+      - ../db/migrations:/migrations:ro
+    command:
+      - -path=/migrations
+      # POSTGRES_PASSWORD must be URL-safe (e.g. openssl rand -hex 32).
+      - -database=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}?sslmode=require
+      - up
+    labels:
+      service: migrate
+    logging: *logging
+    depends_on:
+      postgres:
+        condition: service_healthy
+
+  postgres:
+    image: postgres:17.6
+    restart: unless-stopped
+    # Self-signed cert shipped in the Debian image: encrypts the connection,
+    # satisfies DB_SSL_MODE=require. The port is never published.
+    command:
+      - postgres
+      - -c
+      - ssl=on
+      - -c
+      - ssl_cert_file=/etc/ssl/certs/ssl-cert-snakeoil.pem
+      - -c
+      - ssl_key_file=/etc/ssl/private/ssl-cert-snakeoil.key
+      - -c
+      - shared_buffers=1GB
+      - -c
+      - effective_cache_size=3GB
+      - -c
+      - max_connections=50
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:?}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?}
+      POSTGRES_DB: ${POSTGRES_DB:?}
+    volumes:
+      - pgdata:/var/lib/postgresql/data
+    shm_size: 256m
+    mem_limit: 3g
+    stop_grace_period: 60s
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U \"$$POSTGRES_USER\" -d \"$$POSTGRES_DB\""]
+      interval: 5s
+      timeout: 3s
+      retries: 20
+    labels:
+      service: postgres
+    logging: *logging
+
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:0.160.0
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol/config.yaml"]
+    # Root is needed to read Docker's log files (root-only); mounted read-only.
+    user: "0"
+    environment:
+      GRAFANA_CLOUD_OTLP_ENDPOINT: ${GRAFANA_CLOUD_OTLP_ENDPOINT:?}
+      GRAFANA_CLOUD_INSTANCE_ID: ${GRAFANA_CLOUD_INSTANCE_ID:?}
+      GRAFANA_CLOUD_API_TOKEN: ${GRAFANA_CLOUD_API_TOKEN:?}
+    volumes:
+      - ./otel-collector.yaml:/etc/otelcol/config.yaml:ro
+      - /var/lib/docker/containers:/var/lib/docker/containers:ro
+    mem_limit: 256m
+    # No "service" label on purpose: shipping the collector's own logs would feed
+    # export errors back into the pipeline. Read them with docker compose logs.
+    logging: *logging
+
+networks:
+  default:
+    ipam:
+      config:
+        - subnet: 172.30.0.0/24
+
+volumes:
+  pgdata:
+  caddy_data:
+  caddy_config:

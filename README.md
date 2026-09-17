@@ -56,6 +56,7 @@ make up          # postgres, migrate, app, otel-collector, jaeger, prometheus
 - API: http://localhost:8080
 - Jaeger: http://localhost:16686
 - Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000 (dashboard `chi-product-api`, datasource Prometheus + Jaeger, tanpa login — dev only)
 - Postgres: `localhost:55432` (postgres/postgres)
 
 Set `API_KEYS=...` di shell sebelum `make up` untuk mengaktifkan auth di compose.
@@ -100,12 +101,14 @@ make alerts-test        # promtool check + unit test alert rules
 make loadtest BASE_URL=... API_KEY=... RATE=200   # k6, butuh stack berjalan
 ```
 
-Domain baru: ikuti pola `internal/product` dan daftarkan route-nya di `internal/app/modules.go`. Error query dipetakan dengan `database.IsNotFound` → `apperror.NotFound`, selain itu `tracing.Fail(span, apperror.Internal(...))`. Untuk beberapa query atomik pakai `pgx.BeginFunc` + `queries.WithTx` (contoh teruji: `internal/product/transaction_integration_test.go`). Template generik dari arsitektur ini ada di `../go-chi-boilerplate`.
+Domain baru: ikuti pola `internal/product` dan daftarkan route-nya di `internal/app/modules.go`. Error code umum ada di `internal/platform/apperror/codes.go`; code khusus domain ditaruh di `<domain>/errors.go` (contoh: `internal/product/errors.go`). Error query dipetakan dengan `database.IsNotFound` → `apperror.NotFound`, selain itu `tracing.Fail(span, apperror.Internal(...))`. Untuk beberapa query atomik pakai `pgx.BeginFunc` + `queries.WithTx` (contoh teruji: `internal/product/transaction_integration_test.go`). Template generik dari arsitektur ini ada di `../go-chi-boilerplate`.
 
 Migrasi baru: tambahkan pasangan `db/migrations/000N_nama.up.sql` dan `.down.sql`, lalu `make sqlc`. Jangan mengubah migrasi yang sudah pernah dijalankan.
 
 CI (`.github/workflows/ci.yml`) menjalankan lint, govulncheck, `sqlc diff`, lint OpenAPI, test alert rules, migrasi up/down/up, test dengan Postgres, build image (dengan `VERSION`), dan scan Trivy.
 
 ## Operasional
+
+Deploy production ke VPS (Caddy + Postgres + OTel Collector, observability ke Grafana Cloud): folder [`deploy/`](deploy/), langkah lengkap di [`docs/runbook.md`](docs/runbook.md#deploy-vps-deploy).
 
 SLO, arti setiap alert, dan langkah penanganannya ada di [`docs/runbook.md`](docs/runbook.md). Alert rules: [`prometheus-alerts.yml`](prometheus-alerts.yml), dimuat oleh Prometheus di compose (http://localhost:9090/alerts).

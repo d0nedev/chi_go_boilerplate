@@ -3,3 +3,5 @@
 /graphify-out/
 *.test
 *.out
+/deploy/.env
+/deploy/backups/

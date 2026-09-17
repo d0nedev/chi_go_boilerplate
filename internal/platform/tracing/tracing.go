@@ -2,6 +2,8 @@ package tracing
 
 import (
 	"context"
+	"os"
+	"uuid"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlptrace/otlptracegrpc"
@@ -51,7 +53,18 @@ func Resource(serviceName, version, environment string) *resource.Resource {
 		semconv.ServiceName(serviceName),
 		semconv.ServiceVersion(version),
 		semconv.DeploymentEnvironmentName(environment),
+		semconv.ServiceInstanceID(instanceID()),
 	)
+}
+
+// instanceID keeps each replica's metric series apart; without it replicas
+// overwrite each other's pool gauges and counters in the collector. The
+// hostname is the pod/container name, which is what operators look up.
+func instanceID() string {
+	if host, err := os.Hostname(); err == nil && host != "" {
+		return host
+	}
+	return uuid.New().String()
 }
 
 func Shutdown(ctx context.Context, tp *trace.TracerProvider) error {

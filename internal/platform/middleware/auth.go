@@ -34,7 +34,7 @@ func APIKey(keys []string) func(http.Handler) http.Handler {
 			if valid != 1 {
 				httpx.WriteError(w, apperror.New(
 					http.StatusUnauthorized,
-					"UNAUTHORIZED",
+					apperror.CodeUnauthorized,
 					"missing or invalid API key",
 				))
 				return

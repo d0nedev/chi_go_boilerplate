@@ -10,6 +10,7 @@ import (
 	"net/http/httptest"
 	"strings"
 	"testing"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"go.opentelemetry.io/contrib/instrumentation/net/http/otelhttp"
@@ -198,5 +199,23 @@ func TestLoggingIncludesBodyOnFailure(t *testing.T) {
 	}
 	if entry["request_body"] != `{"name":1}` {
 		t.Errorf("request_body = %v", entry["request_body"])
+	}
+}
+
+func TestRequestTimeoutCancelsContext(t *testing.T) {
+	h := RequestTimeout(10 * time.Millisecond)(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		select {
+		case <-r.Context().Done():
+			w.WriteHeader(http.StatusGatewayTimeout)
+		case <-time.After(time.Second):
+			w.WriteHeader(http.StatusOK)
+		}
+	}))
+
+	rec := httptest.NewRecorder()
+	h.ServeHTTP(rec, httptest.NewRequest(http.MethodGet, "/", nil))
+
+	if rec.Code != http.StatusGatewayTimeout {
+		t.Errorf("status = %d, want context cancelled before handler finished", rec.Code)
 	}
 }

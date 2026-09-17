@@ -58,7 +58,7 @@ func Internal(code string, message string, err error) *Error {
 func Validation(message string) *Error {
 	return New(
 		http.StatusBadRequest,
-		"VALIDATION_ERROR",
+		CodeValidation,
 		message,
 	)
 }

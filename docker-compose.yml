@@ -84,5 +84,21 @@ services:
     depends_on:
       - otel-collector
 
+  grafana:
+    image: grafana/grafana:12.2.0
+    environment:
+      # Local dev only: no login.
+      GF_AUTH_ANONYMOUS_ENABLED: "true"
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Admin
+      GF_AUTH_DISABLE_LOGIN_FORM: "true"
+    volumes:
+      - ./grafana/provisioning:/etc/grafana/provisioning:ro
+      - ./grafana/dashboards:/var/lib/grafana/dashboards:ro
+    ports:
+      - "3000:3000"
+    depends_on:
+      - prometheus
+      - jaeger
+
 volumes:
   pgdata:

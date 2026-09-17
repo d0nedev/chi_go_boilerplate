@@ -1,6 +1,6 @@
 .git
-.env
-.env.*
+**/.env
+**/.env.*
 !.env.example
 graphify-out
 docs
@@ -8,3 +8,4 @@ http
 *.md
 Dockerfile
 docker-compose.yml
+deploy/backups

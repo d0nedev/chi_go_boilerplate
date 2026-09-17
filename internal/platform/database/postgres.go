@@ -50,6 +50,12 @@ func NewPostgresPool(
 		return nil, fmt.Errorf("ping postgres: %w", err)
 	}
 
+	// Uses the global meter provider, so metrics.Init must run first.
+	if err := otelpgx.RecordStats(pool); err != nil {
+		pool.Close()
+		return nil, fmt.Errorf("record postgres pool stats: %w", err)
+	}
+
 	return pool, nil
 }
 

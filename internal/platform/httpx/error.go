@@ -18,7 +18,7 @@ type ErrorDetail struct {
 
 func WriteError(w http.ResponseWriter, err error) {
 	status := http.StatusInternalServerError
-	code := "INTERNAL_SERVER_ERROR"
+	code := apperror.CodeInternal
 	message := "internal server error"
 
 	var appErr *apperror.Error
@@ -46,7 +46,7 @@ func WriteInternalServerError(w http.ResponseWriter) {
 		w,
 		apperror.New(
 			http.StatusInternalServerError,
-			"INTERNAL_SERVER_ERROR",
+			apperror.CodeInternal,
 			"internal server error",
 		),
 	)

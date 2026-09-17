@@ -15,6 +15,7 @@ import (
 	"fmt"
 	"log/slog"
 	"net/http"
+	"time"
 
 	"github.com/go-chi/chi/v5"
 	"github.com/jackc/pgx/v5/pgxpool"
@@ -159,16 +160,18 @@ func newRouter(
 	router.Use(middleware.Recovery(logger))
 
 	router.NotFound(func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteError(w, apperror.New(http.StatusNotFound, "NOT_FOUND", "route not found"))
+		httpx.WriteError(w, apperror.New(http.StatusNotFound, apperror.CodeNotFound, "route not found"))
 	})
 	router.MethodNotAllowed(func(w http.ResponseWriter, r *http.Request) {
-		httpx.WriteError(w, apperror.New(http.StatusMethodNotAllowed, "METHOD_NOT_ALLOWED", "method not allowed"))
+		httpx.WriteError(w, apperror.New(http.StatusMethodNotAllowed, apperror.CodeMethodNotAllowed, "method not allowed"))
 	})
 
 	router.Get(livenessPath, healthHandler.Health)
 	router.Get(readinessPath, healthHandler.Ready)
 
 	router.Route("/api/v1", func(r chi.Router) {
+		// End the request context before WriteTimeout so the error response still reaches the client.
+		r.Use(middleware.RequestTimeout(cfg.App.WriteTimeout - min(time.Second, cfg.App.WriteTimeout/10)))
 		r.Use(middleware.RateLimit(cfg.RateLimit.RequestsPerMinute))
 
 		for _, mount := range apiRoutes {

@@ -41,7 +41,7 @@ func (s *Service) List(ctx context.Context, limit int, after *pageCursor) ([]db.
 
 	products, err := s.queries.ListProducts(ctx, params)
 	if err != nil {
-		return nil, nil, tracing.Fail(span, apperror.Internal("PRODUCT_QUERY_FAILED", "failed to list products", err))
+		return nil, nil, tracing.Fail(span, apperror.Internal(CodeProductQueryFailed, "failed to list products", err))
 	}
 
 	if len(products) <= limit {
@@ -60,7 +60,7 @@ func (s *Service) FindByID(ctx context.Context, id uuid.UUID) (db.Product, error
 
 	product, err := s.queries.GetProduct(ctx, pgUUID(id))
 	if err != nil {
-		return db.Product{}, mapError(span, err, "PRODUCT_QUERY_FAILED", "failed to get product")
+		return db.Product{}, mapError(span, err, CodeProductQueryFailed, "failed to get product")
 	}
 
 	return product, nil
@@ -80,7 +80,7 @@ func (s *Service) Create(ctx context.Context, req ProductRequest) (db.Product, e
 		Price: price,
 	})
 	if err != nil {
-		return db.Product{}, tracing.Fail(span, apperror.Internal("PRODUCT_CREATE_FAILED", "failed to create product", err))
+		return db.Product{}, tracing.Fail(span, apperror.Internal(CodeProductCreateFailed, "failed to create product", err))
 	}
 
 	return product, nil
@@ -101,7 +101,7 @@ func (s *Service) Update(ctx context.Context, id uuid.UUID, req ProductRequest) 
 		Price: price,
 	})
 	if err != nil {
-		return db.Product{}, mapError(span, err, "PRODUCT_UPDATE_FAILED", "failed to update product")
+		return db.Product{}, mapError(span, err, CodeProductUpdateFailed, "failed to update product")
 	}
 
 	return product, nil
@@ -112,7 +112,7 @@ func (s *Service) Delete(ctx context.Context, id uuid.UUID) error {
 	defer span.End()
 
 	if _, err := s.queries.DeleteProduct(ctx, pgUUID(id)); err != nil {
-		return mapError(span, err, "PRODUCT_DELETE_FAILED", "failed to delete product")
+		return mapError(span, err, CodeProductDeleteFailed, "failed to delete product")
 	}
 
 	return nil
@@ -128,7 +128,7 @@ func toNumeric(value string) (pgtype.Numeric, error) {
 	if err := price.Scan(value); err != nil {
 		return price, apperror.Wrap(
 			http.StatusBadRequest,
-			"INVALID_PRODUCT_PRICE",
+			CodeInvalidProductPrice,
 			"invalid product price",
 			err,
 		)
@@ -140,7 +140,7 @@ func toNumeric(value string) (pgtype.Numeric, error) {
 // mapError turns a query error into the API error for a single-product operation.
 func mapError(span trace.Span, err error, code, message string) error {
 	if database.IsNotFound(err) {
-		return apperror.NotFound("PRODUCT_NOT_FOUND", "product not found")
+		return apperror.NotFound(CodeProductNotFound, "product not found")
 	}
 
 	return tracing.Fail(span, apperror.Internal(code, message, err))

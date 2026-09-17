@@ -27,7 +27,7 @@ func DecodeJSON(
 		case errors.As(err, &maxBytesErr):
 			return apperror.New(
 				http.StatusRequestEntityTooLarge,
-				"REQUEST_BODY_TOO_LARGE",
+				apperror.CodeRequestBodyTooLarge,
 				"request body is too large",
 			)
 		case errors.Is(err, io.EOF):

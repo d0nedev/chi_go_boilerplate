@@ -1,0 +1,77 @@
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+
+  # Container stdout/stderr from Docker's json-file driver. Only lines carrying
+  # the "service" label (set in docker-compose.yml) are kept.
+  file_log:
+    include: [/var/lib/docker/containers/*/*-json.log]
+    start_at: end
+    operators:
+      - type: json_parser
+        timestamp:
+          parse_from: attributes.time
+          layout_type: gotime
+          layout: 2006-01-02T15:04:05.999999999Z07:00
+      - type: filter
+        expr: 'attributes.attrs?.service == nil'
+      - type: move
+        from: attributes.attrs.service
+        to: resource["service.name"]
+      - type: move
+        from: attributes.log
+        to: body
+      # App logs are JSON (slog): lift fields to attributes and map level to severity.
+      - type: json_parser
+        if: 'body matches "^\\{"'
+        parse_from: body
+        parse_to: attributes
+        severity:
+          parse_from: attributes.level
+        # Sets the record's trace context so Grafana links a log line to its trace.
+        trace:
+          trace_id:
+            parse_from: attributes.trace_id
+          span_id:
+            parse_from: attributes.span_id
+      - type: remove
+        field: attributes.attrs
+      - type: remove
+        field: attributes.time
+
+processors:
+  memory_limiter:
+    check_interval: 1s
+    limit_mib: 200
+  batch:
+
+extensions:
+  basicauth/grafana:
+    client_auth:
+      username: ${env:GRAFANA_CLOUD_INSTANCE_ID}
+      password: ${env:GRAFANA_CLOUD_API_TOKEN}
+
+exporters:
+  # Grafana Cloud OTLP gateway: metrics -> Mimir, traces -> Tempo, logs -> Loki.
+  otlphttp/grafana:
+    endpoint: ${env:GRAFANA_CLOUD_OTLP_ENDPOINT}
+    auth:
+      authenticator: basicauth/grafana
+
+service:
+  extensions: [basicauth/grafana]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/grafana]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/grafana]
+    logs:
+      receivers: [file_log]
+      processors: [memory_limiter, batch]
+      exporters: [otlphttp/grafana]

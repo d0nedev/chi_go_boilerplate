@@ -33,6 +33,17 @@ groups:
           summary: "p95 latency {{ $value | humanizeDuration }} on {{ $labels.http_route }}"
           runbook: docs/runbook.md#servicehighlatency
 
+      # Requests wait for a connection once the pool is full; latency and timeouts follow.
+      - alert: ServiceDatabasePoolSaturated
+        expr: max by (exported_instance) (pgxpool_acquired_connections{exported_job="chi-product-api"} / pgxpool_max_connections{exported_job="chi-product-api"}) >= 0.9
+        for: 5m
+        labels:
+          service: chi-product-api
+          severity: ticket
+        annotations:
+          summary: "DB pool {{ $value | humanizePercentage }} used on {{ $labels.exported_instance }}"
+          runbook: docs/runbook.md#servicedatabasepoolsaturated
+
       - alert: ServiceNoTraffic
         expr: absent_over_time(http_server_request_duration_seconds_count{exported_job="chi-product-api"}[15m])
         for: 5m

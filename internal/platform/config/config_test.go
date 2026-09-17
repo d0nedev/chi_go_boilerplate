@@ -54,6 +54,12 @@ func TestValidate(t *testing.T) {
 			c.DB.SSLMode = "verify-full"
 			c.OTLP.Insecure = false
 		}, ""},
+		{"production allows explicit plaintext to local collector", func(c *Config) {
+			c.App.Env = EnvProduction
+			c.Auth.APIKeys = []string{"k"}
+			c.DB.SSLMode = "require"
+			c.OTLP.Insecure = true
+		}, ""},
 	}
 
 	for _, tt := range tests {

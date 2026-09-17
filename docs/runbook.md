@@ -27,7 +27,7 @@ Rasio 5xx di atas 1.4% selama 5 menit, artinya error budget bulanan habis sekita
 1. Cari route mana yang gagal: `sum by (http_route, http_response_status_code) (rate(http_server_request_duration_seconds_count{http_response_status_code=~"5.."}[5m]))`.
 2. Cek apakah bertepatan dengan rilis: pisahkan per `service_version`. Jika error hanya ada di versi baru, rollback.
 3. Cari log `"level":"ERROR"` dan periksa `error_code`:
-   - `PRODUCT_*_FAILED`: error dari database. Cek `/ready`, koneksi Postgres, dan apakah query dibatalkan oleh `statement_timeout` (`canceling statement due to statement timeout`).
+   - `PRODUCT_*_FAILED`: error dari database. Cek `/ready`, koneksi Postgres, dan apakah query dibatalkan oleh `statement_timeout` (`canceling statement due to statement timeout`) atau oleh batas waktu request (`context deadline exceeded`, lihat ServiceDatabasePoolSaturated).
    - `panic recovered`: bug. Lihat `stack_trace`, lalu rollback.
 4. Buka trace contoh lewat `trace_id` dari log untuk melihat span DB yang gagal.
 
@@ -39,6 +39,14 @@ p95 sebuah route di atas 300ms selama 10 menit.
    - `pool.acquire` lama: pool DB penuh. Pertimbangkan menaikkan `DB_MAX_CONNS` (perhatikan `max_connections` Postgres dikali jumlah replika) atau menambah replika.
    - Query lama: cek `pg_stat_statements` dan rencana eksekusi. Untuk list, pastikan index `products_created_at_id_idx` dipakai.
 2. Pastikan tidak ada klien yang meminta `limit=100` secara berlebihan.
+
+## ServiceDatabasePoolSaturated
+
+Minimal satu replika memakai ≥ 90% koneksi pool (`DB_MAX_CONNS`) selama 5 menit. Request berikutnya menunggu koneksi, dan kalau menunggu melewati batas waktu request (`APP_WRITE_TIMEOUT` dikurangi margin), request gagal dengan `PRODUCT_*_FAILED` dan `cause` berisi `context deadline exceeded`.
+
+1. Cek apakah query melambat: `rate(pgxpool_empty_acquire_wait_time_nanoseconds_total[5m])` naik bersamaan dengan latency, dan trace menunjukkan span query yang lama. Kalau ya, masalahnya di DB, bukan ukuran pool (lihat ServiceHighLatency).
+2. Kalau query normal tapi trafik naik: tambah replika, atau naikkan `DB_MAX_CONNS`. Pastikan `DB_MAX_CONNS × jumlah replika` masih di bawah `max_connections` Postgres.
+3. Kalau hanya satu `exported_instance` yang penuh: cek replika itu (koneksi bocor, request lambat tertentu).
 
 ## ServiceNoTraffic
 
@@ -57,11 +65,53 @@ Prometheus tidak bisa scrape OTel collector. **Semua alert lain buta** selama ko
 
 ## Operasi Rutin
 
-### Deploy
+### Deploy (VPS, `deploy/`)
 
-1. Jalankan migrasi **sebelum** rollout: `make migrate-up DATABASE_URL=...`. Migrasi harus kompatibel dengan versi app yang sedang berjalan.
-2. Rollout. App menunggu DB hingga `DB_CONNECT_TIMEOUT` (default 30s).
-3. Build image dengan versi: `docker build --build-arg VERSION=$(git describe --tags --always) .`
+Topologi: satu VPS menjalankan Caddy (HTTPS otomatis), app, Postgres, migrate, dan OTel Collector. Metrics, traces, dan log dikirim ke **Grafana Cloud**, jadi alert tetap jalan saat VPS mati. Stack Jaeger/Prometheus/Grafana di `docker-compose.yml` root hanya untuk dev.
+
+**Setup pertama:**
+
+1. VPS: pasang Docker Engine + compose plugin, aktifkan security update otomatis (`unattended-upgrades`), SSH hanya pakai key. Firewall hanya buka 22, 80, 443.
+2. DNS `A` record domain ke IP VPS (wajib sebelum start, untuk sertifikat Let's Encrypt).
+3. Grafana Cloud: buat stack, lalu **Connections > OpenTelemetry (OTLP)** untuk mendapatkan endpoint, instance ID, dan token.
+4. Di VPS:
+   ```sh
+   git clone <repo> && cd <repo>/deploy
+   cp .env.example .env && chmod 600 .env   # isi semua nilai
+   VERSION=$(git describe --tags --always) docker compose up -d --build
+   curl -fsS https://$DOMAIN/ready
+   ```
+5. Cron backup (lihat header `deploy/backup.sh`) dan set `BACKUP_REMOTE` ke object storage di luar VPS.
+6. Grafana Cloud:
+   - **Alert rules**: import `prometheus-alerts.yml`. Metrics lewat OTLP memakai label `job`/`instance`, bukan `exported_job`/`exported_instance`:
+     `sed 's/exported_job/job/g; s/exported_instance/instance/g' prometheus-alerts.yml`.
+     Lewati `ServiceTelemetryPipelineDown` (tidak ada scrape Prometheus); penggantinya `ServiceNoTraffic` + uptime check.
+   - **Dashboard**: import `grafana/dashboards/chi-product-api.json` dengan substitusi label yang sama.
+   - **Uptime check** (Synthetic Monitoring) ke `https://$DOMAIN/ready` dari luar. Ini satu-satunya alert yang menangkap VPS mati total.
+   - **Contact point**: arahkan notifikasi ke Slack/email/pager.
+   - **Log**: Explore > Loki, `{service_name="chi-product-api"}`. Klik `trace_id` untuk membuka trace di Tempo.
+
+**Rilis versi baru:**
+
+```sh
+cd <repo> && git pull && cd deploy
+VERSION=$(git describe --tags --always) docker compose up -d --build
+docker image prune -f
+```
+
+Migrasi jalan otomatis (service `migrate`) sebelum app start, jadi migrasi harus kompatibel dengan versi app sebelumnya. Dengan satu replika, ada jeda beberapa detik (Caddy mengembalikan 502) selama container app diganti.
+
+**Rollback:** `git checkout <tag-sebelumnya>` lalu jalankan perintah rilis yang sama. Migrasi tidak ikut mundur; turunkan manual hanya bila perlu.
+
+**Restore backup:**
+
+```sh
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists' < backups/<file>.dump
+```
+
+Uji restore ke database terpisah secara berkala; backup yang tidak pernah di-restore belum terbukti.
+
+**Log lokal di VPS:** `docker compose logs -f app`. Tiap container dibatasi 5 × 10 MB. Log collector tidak dikirim ke Grafana Cloud (mencegah loop saat export gagal); cek dengan `docker compose logs otel-collector`.
 
 ### Shutdown / Rolling Restart
 
@@ -76,4 +126,5 @@ Saat SIGTERM: `/ready` langsung 503, lalu tunggu `APP_SHUTDOWN_DRAIN_DELAY`, lal
 ### Batasan yang Diketahui
 
 - Rate limit disimpan di memori per instance. Dengan N replika, limit efektif adalah N × `RATE_LIMIT_REQUESTS_PER_MINUTE`.
-- Tidak ada Alertmanager di `docker-compose.yml`. Alert hanya terlihat di UI Prometheus (`/alerts`). Routing notifikasi (pager/Slack) dikonfigurasi di platform monitoring masing-masing environment.
+- Tidak ada Alertmanager di `docker-compose.yml` (dev). Di production, alert dan routing notifikasi ada di Grafana Cloud.
+- Deploy VPS satu replika: tidak zero-downtime saat rilis, dan VPS adalah single point of failure. Backup off-site adalah jaring pengaman utamanya.

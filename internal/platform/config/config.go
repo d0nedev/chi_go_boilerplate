@@ -106,7 +106,8 @@ func Load() (*Config, error) {
 
 	env := v.GetString("APP_ENV")
 
-	// Plaintext OTLP is only a sane default on a developer machine.
+	// Plaintext OTLP is only a sane default on a developer machine. Production may
+	// still opt in explicitly for a collector on the same private network.
 	v.SetDefault("OTEL_EXPORTER_OTLP_INSECURE", env == EnvDevelopment)
 
 	logLevel, err := parseLogLevel(v.GetString("LOG_LEVEL"))
@@ -215,7 +216,6 @@ func (c *Config) Validate() error {
 	if c.App.Env == EnvProduction {
 		require(slices.Contains([]string{"require", "verify-ca", "verify-full"}, c.DB.SSLMode),
 			"DB_SSL_MODE must be require, verify-ca, or verify-full in production")
-		require(!c.OTLP.Insecure, "OTEL_EXPORTER_OTLP_INSECURE must be false in production")
 	}
 
 	return errors.Join(errs...)

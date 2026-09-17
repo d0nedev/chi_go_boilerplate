@@ -76,14 +76,14 @@ func RateLimit(requestsPerMinute int) func(http.Handler) http.Handler {
 		httprate.WithLimitHandler(func(w http.ResponseWriter, r *http.Request) {
 			httpx.WriteError(w, apperror.New(
 				http.StatusTooManyRequests,
-				"RATE_LIMITED",
+				apperror.CodeRateLimited,
 				"too many requests",
 			))
 		}),
 		httprate.WithErrorHandler(func(w http.ResponseWriter, r *http.Request, err error) {
 			httpx.WriteError(w, apperror.New(
 				http.StatusBadRequest,
-				"CLIENT_IP_UNRESOLVED",
+				apperror.CodeClientIPUnresolved,
 				err.Error(),
 			))
 		}),
