@@ -20,7 +20,7 @@ Rules:
   - `<nama-report>`: kebab-case, singkat, deskriptif. Contoh: `docs/reports/p0-perbaikan-blocker.md`.
 - Jangan menulis laporan di luar `docs/reports/`, dan jangan menimpa laporan yang sudah ada. Buat file baru.
 - Isi minimal laporan:
-  1. Tanggal dan referensi ke dokumen review terkait (mis. `docs/architecture-production-ready.md`).
+  1. Tanggal dan referensi ke dokumen/issue terkait.
   2. Tabel item yang dikerjakan: ID, masalah, perbaikan, file.
   3. Test yang ditambahkan dan bug yang ditangkap.
   4. Bukti verifikasi: output `go build`, `go vet`, `go test`, dan uji manual/e2e bila ada.
@@ -29,4 +29,4 @@ Rules:
 
 ## Dokumen Terkait
 
-- Review arsitektur & kriteria production ready: `docs/architecture-production-ready.md`
+- Operasional, deploy, dan alert: `docs/runbook.md`

@@ -1,9 +1,9 @@
 package httpx
 
 import (
-	"chi-product-api/internal/platform/apperror"
 	"encoding/json"
 	"errors"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
 	"io"
 	"net/http"
 )

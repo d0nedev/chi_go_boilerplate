@@ -6,7 +6,7 @@ import (
 	"net/http"
 	"testing"
 
-	"chi-product-api/internal/platform/apperror"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
 
 	"go.opentelemetry.io/otel/codes"
 	sdktrace "go.opentelemetry.io/otel/sdk/trace"

@@ -1,7 +1,7 @@
 apiVersion: 1
 
 providers:
-  - name: chi-product-api
+  - name: chi-go-boilerplate
     type: file
     options:
       path: /var/lib/grafana/dashboards

@@ -1,4 +1,4 @@
-module chi-product-api
+module github.com/d0nedev/chi_go_boilerplate
 
 go 1.27.1
 

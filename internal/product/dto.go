@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	"chi-product-api/internal/platform/apperror"
-	db "chi-product-api/internal/platform/database/sqlc"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
+	db "github.com/d0nedev/chi_go_boilerplate/internal/platform/database/sqlc"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )

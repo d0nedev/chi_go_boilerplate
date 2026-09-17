@@ -1,8 +1,8 @@
 package logging
 
 import (
-	"chi-product-api/internal/platform/apperror"
 	"errors"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
 	"log/slog"
 	"net/http"
 )

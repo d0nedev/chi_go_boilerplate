@@ -1,10 +1,10 @@
 package app
 
 import (
-	"chi-product-api/internal/platform/config"
-	db "chi-product-api/internal/platform/database/sqlc"
-	"chi-product-api/internal/platform/middleware"
-	"chi-product-api/internal/product"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/config"
+	db "github.com/d0nedev/chi_go_boilerplate/internal/platform/database/sqlc"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/middleware"
+	"github.com/d0nedev/chi_go_boilerplate/internal/product"
 	"log/slog"
 
 	"github.com/go-chi/chi/v5"
@@ -24,7 +24,7 @@ func modules(
 	requireAPIKey := middleware.APIKey(cfg.Auth.APIKeys)
 
 	products := product.NewHandler(
-		product.NewService(queries, tp.Tracer("chi-product-api/internal/product")),
+		product.NewService(queries, tp.Tracer("product")),
 	)
 
 	return []func(chi.Router){

@@ -1,4 +1,4 @@
-# Runbook: chi-product-api
+# Runbook: chi-go-boilerplate
 
 Setiap alert di `prometheus-alerts.yml` punya `annotations.runbook` yang mengarah ke bagian di dokumen ini.
 
@@ -16,7 +16,7 @@ Baseline load test lokal (lihat `loadtest/products.js`): pada 3000 req/s, p95 ba
 | Kebutuhan | Tempat |
 |---|---|
 | Metrics | Prometheus. Label `http_route`, `http_response_status_code`, `service_version`, `deployment_environment_name` |
-| Trace | Jaeger, service `chi-product-api`. Nama span `GET /api/v1/products/{id}` dan `ProductService.*` |
+| Trace | Jaeger, service `chi-go-boilerplate`. Nama span `GET /api/v1/products/{id}` dan `ProductService.*` |
 | Log | JSON stdout. Korelasi lewat `request_id` (juga di header `X-Request-ID`) dan `trace_id` |
 | Konfigurasi efektif | Log `configuration loaded` saat startup |
 
@@ -86,10 +86,10 @@ Topologi: satu VPS menjalankan Caddy (HTTPS otomatis), app, Postgres, migrate, d
    - **Alert rules**: import `prometheus-alerts.yml`. Metrics lewat OTLP memakai label `job`/`instance`, bukan `exported_job`/`exported_instance`:
      `sed 's/exported_job/job/g; s/exported_instance/instance/g' prometheus-alerts.yml`.
      Lewati `ServiceTelemetryPipelineDown` (tidak ada scrape Prometheus); penggantinya `ServiceNoTraffic` + uptime check.
-   - **Dashboard**: import `grafana/dashboards/chi-product-api.json` dengan substitusi label yang sama.
+   - **Dashboard**: import `grafana/dashboards/chi-go-boilerplate.json` dengan substitusi label yang sama.
    - **Uptime check** (Synthetic Monitoring) ke `https://$DOMAIN/ready` dari luar. Ini satu-satunya alert yang menangkap VPS mati total.
    - **Contact point**: arahkan notifikasi ke Slack/email/pager.
-   - **Log**: Explore > Loki, `{service_name="chi-product-api"}`. Klik `trace_id` untuk membuka trace di Tempo.
+   - **Log**: Explore > Loki, `{service_name="chi-go-boilerplate"}`. Klik `trace_id` untuk membuka trace di Tempo.
 
 **Rilis versi baru:**
 

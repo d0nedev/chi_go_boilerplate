@@ -1,9 +1,9 @@
 package main
 
 import (
-	"chi-product-api/internal/app"
 	"context"
 	"errors"
+	"github.com/d0nedev/chi_go_boilerplate/internal/app"
 	"log/slog"
 	"net/http"
 	"os"

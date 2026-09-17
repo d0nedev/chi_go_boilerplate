@@ -1,10 +1,10 @@
 package middleware
 
 import (
-	"chi-product-api/internal/platform/apperror"
-	"chi-product-api/internal/platform/httpx"
 	"crypto/sha256"
 	"crypto/subtle"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/httpx"
 	"net/http"
 )
 

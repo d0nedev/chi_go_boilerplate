@@ -1,8 +1,8 @@
 package health
 
 import (
-	"chi-product-api/internal/platform/httpx"
 	"context"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/httpx"
 	"net/http"
 	"sync/atomic"
 	"time"

@@ -1,7 +1,7 @@
 package product
 
 import (
-	"chi-product-api/internal/platform/httpx"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/httpx"
 	"log/slog"
 	"net/http"
 

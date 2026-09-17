@@ -1,8 +1,8 @@
 package logging
 
 import (
-	"chi-product-api/internal/platform/requestcontext"
 	"context"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/requestcontext"
 	"log/slog"
 	"net"
 	"net/http"

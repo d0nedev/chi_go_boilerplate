@@ -1,4 +1,4 @@
-DATABASE_URL ?= postgres://postgres:postgres@localhost:55432/chi_product?sslmode=disable
+DATABASE_URL ?= postgres://postgres:postgres@localhost:55432/chi_go_boilerplate?sslmode=disable
 MIGRATE = docker run --rm --network host -v $(CURDIR)/db/migrations:/migrations:ro migrate/migrate:v4.20.1 -path=/migrations -database "$(DATABASE_URL)"
 
 .PHONY: run test test-integration lint vuln sqlc migrate-up migrate-down up down openapi-lint alerts-test loadtest

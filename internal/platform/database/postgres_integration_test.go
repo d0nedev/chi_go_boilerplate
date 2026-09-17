@@ -7,7 +7,7 @@ import (
 	"testing"
 	"time"
 
-	"chi-product-api/internal/platform/config"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/config"
 )
 
 func TestIntegrationPoolAppliesStatementTimeout(t *testing.T) {

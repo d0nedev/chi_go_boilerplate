@@ -7,7 +7,7 @@ import (
 	"strings"
 	"testing"
 
-	"chi-product-api/internal/platform/apperror"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
 )
 
 func TestWriteErrorUnwrapsAppError(t *testing.T) {

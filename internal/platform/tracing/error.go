@@ -1,9 +1,9 @@
 package tracing
 
 import (
-	"chi-product-api/internal/platform/apperror"
 	"errors"
 	"fmt"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/apperror"
 
 	"go.opentelemetry.io/otel/codes"
 	"go.opentelemetry.io/otel/trace"

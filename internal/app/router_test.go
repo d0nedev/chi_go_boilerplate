@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"chi-product-api/internal/platform/config"
-	"chi-product-api/internal/platform/health"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/config"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/health"
 
 	"go.opentelemetry.io/otel/trace/noop"
 )

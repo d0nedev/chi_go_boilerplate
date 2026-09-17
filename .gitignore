@@ -5,3 +5,4 @@
 *.out
 /deploy/.env
 /deploy/backups/
+.claude/settings.local.json

@@ -1,9 +1,9 @@
 package database
 
 import (
-	"chi-product-api/internal/platform/config"
 	"context"
 	"fmt"
+	"github.com/d0nedev/chi_go_boilerplate/internal/platform/config"
 	"net"
 	"net/url"
 	"strconv"
