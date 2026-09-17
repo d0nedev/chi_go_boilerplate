@@ -9,8 +9,8 @@ import (
 	"strings"
 	"testing"
 
-	"chi-product-api/internal/config"
-	"chi-product-api/internal/health"
+	"chi-product-api/internal/platform/config"
+	"chi-product-api/internal/platform/health"
 
 	"go.opentelemetry.io/otel/trace/noop"
 )

@@ -5,7 +5,7 @@ import (
 	"errors"
 	"testing"
 
-	db "chi-product-api/internal/database/sqlc"
+	db "chi-product-api/internal/platform/database/sqlc"
 
 	"github.com/jackc/pgx/v5"
 	"github.com/jackc/pgx/v5/pgtype"

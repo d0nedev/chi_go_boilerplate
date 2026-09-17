@@ -5,10 +5,10 @@ import (
 	"net/http"
 	"uuid"
 
-	"chi-product-api/internal/database"
-	db "chi-product-api/internal/database/sqlc"
 	"chi-product-api/internal/platform/apperror"
-	"chi-product-api/internal/tracing"
+	"chi-product-api/internal/platform/database"
+	db "chi-product-api/internal/platform/database/sqlc"
+	"chi-product-api/internal/platform/tracing"
 
 	"github.com/jackc/pgx/v5/pgtype"
 	"go.opentelemetry.io/otel/trace"

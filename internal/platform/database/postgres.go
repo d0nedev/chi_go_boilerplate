@@ -1,7 +1,7 @@
 package database
 
 import (
-	"chi-product-api/internal/config"
+	"chi-product-api/internal/platform/config"
 	"context"
 	"fmt"
 	"net"

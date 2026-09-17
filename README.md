@@ -7,13 +7,14 @@ REST API produk berbasis Go, [chi](https://github.com/go-chi/chi), PostgreSQL ([
 ```
 cmd/server            entrypoint: HTTP server, graceful shutdown + readiness drain
 internal/app          composition root: config, telemetry, DB pool, router (app.go); wiring domain (modules.go)
-internal/config       konfigurasi dari env / .env, validasi per environment
 internal/product      domain produk: handler -> service -> sqlc
-internal/database     pool Postgres + kode hasil generate sqlc
-internal/middleware   request ID, access log, route tag (OTel), recovery, API key
-internal/platform     apperror (error terstruktur) dan httpx (JSON request/response)
-internal/health       /health (liveness) dan /ready (readiness + drain)
-internal/{logging,tracing,metrics}  slog JSON, OTel traces & metrics via OTLP gRPC
+internal/platform     utilitas sistem (bukan business logic):
+  config              konfigurasi dari env / .env, validasi per environment
+  database            pool Postgres + kode hasil generate sqlc
+  middleware          request ID, access log, route tag (OTel), recovery, API key
+  apperror, httpx     error terstruktur, JSON request/response
+  health              /health (liveness) dan /ready (readiness + drain)
+  logging, tracing, metrics, requestcontext  slog JSON, OTel traces & metrics via OTLP gRPC
 db/migrations         migrasi golang-migrate (juga schema sumber sqlc)
 db/queries            query SQL untuk sqlc
 ```

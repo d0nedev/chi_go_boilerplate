@@ -1,9 +1,9 @@
 package app
 
 import (
-	"chi-product-api/internal/config"
-	db "chi-product-api/internal/database/sqlc"
-	"chi-product-api/internal/middleware"
+	"chi-product-api/internal/platform/config"
+	db "chi-product-api/internal/platform/database/sqlc"
+	"chi-product-api/internal/platform/middleware"
 	"chi-product-api/internal/product"
 	"log/slog"
 

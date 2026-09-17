@@ -1,15 +1,15 @@
 package app
 
 import (
-	"chi-product-api/internal/config"
-	"chi-product-api/internal/database"
-	"chi-product-api/internal/health"
-	"chi-product-api/internal/logging"
-	"chi-product-api/internal/metrics"
-	"chi-product-api/internal/middleware"
 	"chi-product-api/internal/platform/apperror"
+	"chi-product-api/internal/platform/config"
+	"chi-product-api/internal/platform/database"
+	"chi-product-api/internal/platform/health"
 	"chi-product-api/internal/platform/httpx"
-	"chi-product-api/internal/tracing"
+	"chi-product-api/internal/platform/logging"
+	"chi-product-api/internal/platform/metrics"
+	"chi-product-api/internal/platform/middleware"
+	"chi-product-api/internal/platform/tracing"
 	"context"
 	"errors"
 	"fmt"

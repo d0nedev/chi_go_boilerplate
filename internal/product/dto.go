@@ -10,8 +10,8 @@ import (
 	"unicode/utf8"
 	"uuid"
 
-	db "chi-product-api/internal/database/sqlc"
 	"chi-product-api/internal/platform/apperror"
+	db "chi-product-api/internal/platform/database/sqlc"
 
 	"github.com/jackc/pgx/v5/pgtype"
 )

@@ -1,9 +1,9 @@
 package middleware
 
 import (
-	"chi-product-api/internal/logging"
 	"chi-product-api/internal/platform/httpx"
-	"chi-product-api/internal/tracing"
+	"chi-product-api/internal/platform/logging"
+	"chi-product-api/internal/platform/tracing"
 	"log/slog"
 	"net/http"
 	"runtime/debug"

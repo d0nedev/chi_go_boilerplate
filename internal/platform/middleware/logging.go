@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"chi-product-api/internal/logging"
+	"chi-product-api/internal/platform/logging"
 	"io"
 	"log/slog"
 	"net/http"

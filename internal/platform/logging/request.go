@@ -1,7 +1,7 @@
 package logging
 
 import (
-	"chi-product-api/internal/requestcontext"
+	"chi-product-api/internal/platform/requestcontext"
 	"context"
 	"log/slog"
 	"net"

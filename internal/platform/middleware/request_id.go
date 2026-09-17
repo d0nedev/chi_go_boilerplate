@@ -1,7 +1,7 @@
 package middleware
 
 import (
-	"chi-product-api/internal/requestcontext"
+	"chi-product-api/internal/platform/requestcontext"
 	"net/http"
 	"regexp"
 	"uuid"

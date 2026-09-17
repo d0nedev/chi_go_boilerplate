@@ -4,7 +4,7 @@ import (
 	"context"
 	"fmt"
 
-	"chi-product-api/internal/tracing"
+	"chi-product-api/internal/platform/tracing"
 
 	"go.opentelemetry.io/otel"
 	"go.opentelemetry.io/otel/exporters/otlp/otlpmetric/otlpmetricgrpc"

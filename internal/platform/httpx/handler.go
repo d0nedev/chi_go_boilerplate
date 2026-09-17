@@ -1,7 +1,7 @@
 package httpx
 
 import (
-	"chi-product-api/internal/logging"
+	"chi-product-api/internal/platform/logging"
 	"log/slog"
 	"net/http"
 )
